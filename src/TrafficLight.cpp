@@ -55,9 +55,12 @@ void TrafficLight::simulate()
 // virtual function which is executed in a thread
 void TrafficLight::cycleThroughPhases()
 {
+    std::random_device randomNum;
+    std::mt19937 gen(randomNum());
+    std::uniform_int_distribution<> uniformDistr(4000, 6000);
     while (true)
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(4000));
+        std::this_thread::sleep_for(std::chrono::milliseconds(uniformDistr(gen)));
         if (_currentPhase == TrafficLightPhase::red)
         {
             _currentPhase = TrafficLightPhase::green;
@@ -66,10 +69,8 @@ void TrafficLight::cycleThroughPhases()
         {
             _currentPhase = TrafficLightPhase::red;
         }
-        auto msg = _currentPhase;
-        auto msgFuture = std::async(std::launch::async, &MessageQueue<TrafficLightPhase>::send, 
-                                    &_trafficLightQueue, std::move(msg));
-        msgFuture.wait();
+
+       _trafficLightQueue.send(std::move(_currentPhase));
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     } 
 }
