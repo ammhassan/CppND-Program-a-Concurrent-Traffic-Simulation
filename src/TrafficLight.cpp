@@ -10,8 +10,8 @@ T MessageQueue<T>::receive()
 {
     std::unique_lock<std::mutex> lock(_mutx);
     _cond.wait(lock);
-    auto msg{std::move(_queue.front())};
-    _queue.pop_front();
+    auto msg{std::move(_queue.back())};
+    _queue.pop_back();
     return msg; 
 }
 
@@ -58,19 +58,33 @@ void TrafficLight::cycleThroughPhases()
     std::random_device randomNum;
     std::mt19937 gen(randomNum());
     std::uniform_int_distribution<> uniformDistr(4000, 6000);
+
+    // init stop watch
+    auto lastUpdate = std::chrono::system_clock::now();
+
     while (true)
     {
-        std::this_thread::sleep_for(std::chrono::milliseconds(uniformDistr(gen)));
-        if (_currentPhase == TrafficLightPhase::red)
+        // compute time difference to stop watch
+        long timeSinceLastUpdate = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - lastUpdate).count();
+
+        // toggle between the two phases when timeSinceLastUpdate exceeds the randomly generated cycle duration
+        if (timeSinceLastUpdate >= uniformDistr(gen))
         {
-            _currentPhase = TrafficLightPhase::green;
-        }
-        else
-        {
-            _currentPhase = TrafficLightPhase::red;
+            if (_currentPhase == TrafficLightPhase::red)
+            {
+                _currentPhase = TrafficLightPhase::green;
+            }
+            else
+            {
+                _currentPhase = TrafficLightPhase::red;
+            }
+            _trafficLightQueue.send(std::move(_currentPhase));
+        
+            // reset stop watch for next cycle
+            lastUpdate = std::chrono::system_clock::now();
         }
 
-       _trafficLightQueue.send(std::move(_currentPhase));
+        // sleep between two cycles to reduce cpu usage
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     } 
 }
